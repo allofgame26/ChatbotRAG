@@ -25,7 +25,7 @@ db = mysql.connector.connect(
 # melakukan query untuk mengambil data dari tabel knowledge_base
 
 def search_document(database,query , top_k=5):
-    result = []
+    results = []
     
     query_embedding_list = embedder.encode(query).tolist()
     query_embedding_str = json.dumps(query_embedding_list)
@@ -37,10 +37,23 @@ def search_document(database,query , top_k=5):
     search_results = cursor.fetchall()
     database.commit()
     cursor.close()
-    print(search_results)
+
+    for result in search_results:
+        text, distance = result
+        results.append({
+            'text': text,
+            'distance': distance
+        })
+    return results
 
 def respone_query(database,query):
     retrieve_doc = search_document(database, query)
+
+    context = "\n".join([doc['text'] for doc in retrieve_doc])
+    prompt = f"You are a helpful assistant. Use the following context to answer the question. answer following question based on the provided context {context} \n\n question:{query}"
+    response = llm_agent.chat(model=OLLAMA_MODEL, messages=[{"role": "user", "content": prompt}])
+
+    return response['message']['content']
 
 if __name__ == "__main__":
     print("Chat Bot is running...")
